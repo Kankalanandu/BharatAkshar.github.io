@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BharatAkshar - Sign Transliterate</title>
+    <title>BharatPath - Sign Transliterate</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -122,7 +122,7 @@
         <div class="app-container">
             <!-- Header -->
             <header class="flex items-center justify-between p-4 glass-panel">
-                <h1 class="text-xl font-semibold">BharatAkshar</h1>
+                <h1 class="text-xl font-semibold">Street Sign Transliterate</h1>
                 <button id="settings-btn" class="p-2 rounded-full hover:bg-white/10 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 </button>
@@ -291,7 +291,7 @@
             { id: 'airport', scripts: { 'en-US': 'Airport', 'hi-IN': 'एयरपोर्ट', 'ta-IN': 'ஏர்போர்ட்', 'te-IN': 'ఎయిర్ పోర్ట్', 'bn-IN': 'এয়ারপোর্ট', 'gu-IN': 'એરપોર્ટ' }},
             { id: 'hospital', scripts: { 'en-US': 'Hospital', 'hi-IN': 'हॉस्पिटल', 'ta-IN': 'ஹாஸ்பிடல்', 'te-IN': 'హాస్పిటల్', 'bn-IN': 'হাসপাতাল', 'gu-IN': 'હોસ્પિટલ' }},
             { id: 'bus_stop', scripts: { 'en-US': 'Bus Stop', 'hi-IN': 'बस स्टॉप', 'ta-IN': 'பஸ் ஸ்டாப்', 'te-IN': 'బస్ స్టాప్', 'bn-IN': 'বাস স্টপ', 'gu-IN': 'બસ સ્ટોપ' }},
-            { id: 'railway_station', scripts: { 'en-US': 'Railway Station', 'hi-IN': 'रेलवे स्टेशन', 'ta-IN': 'ரயில்வே ஸ்டேஷன்', 'te-IN': 'రైల్వే స్టేషన్', 'bn-IN': 'রেলওয়ে স্টেশন', 'gu-IN': 'રેલવે સ્ટેશન' }},
+            { id: 'railway_station', scripts: { 'en-US': 'Railway Station', 'hi-IN': 'रेलवे स्टेशन', 'ta-IN': 'ரயில்வே സ്റ്റേஷன்', 'te-IN': 'రైల్వే స్టేషన్', 'bn-IN': 'রেলওয়ে স্টেশন', 'gu-IN': 'રેલવે સ્ટેશન' }},
             { id: 'market', scripts: { 'en-US': 'Market', 'hi-IN': 'मार्केट', 'ta-IN': 'மார்க்கெட்', 'te-IN': 'మార్కెట్', 'bn-IN': 'মার্কেট', 'gu-IN': 'માર્કેટ' }},
             { id: 'school', scripts: { 'en-US': 'School', 'hi-IN': 'स्कूल', 'ta-IN': 'ஸ்கூல்', 'te-IN': 'స్కూల్', 'bn-IN': 'স্কুল', 'gu-IN': 'સ્કૂલ' }},
             { id: 'police_station', scripts: { 'en-US': 'Police Station', 'hi-IN': 'पुलिस स्टेशन', 'ta-IN': 'போலீஸ் ஸ்டேஷன்', 'te-IN': 'పోలీస్ స్టేషన్', 'bn-IN': 'পুলিশ স্টেশন', 'gu-IN': 'પોલીસ સ્ટેશન' }},
@@ -501,8 +501,6 @@
 
             if (!text) return;
             
-            // NOTE: This cloud-based TTS URL will show an error on local servers due to CORS.
-            // It is designed to work correctly when deployed to a live web host.
             const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=tw-ob`;
             currentAudio = new Audio(ttsUrl);
             currentPlayButton = btn;
@@ -614,11 +612,12 @@
             };
             
             const mouse = { x: undefined, y: undefined };
-            window.addEventListener('mousemove', (event) => {
-                mouse.x = event.x;
-                mouse.y = event.y;
+            app.addEventListener('mousemove', (event) => {
+                const rect = app.getBoundingClientRect();
+                mouse.x = event.clientX - rect.left;
+                mouse.y = event.clientY - rect.top;
             });
-             window.addEventListener('mouseout', () => {
+             app.addEventListener('mouseout', () => {
                 mouse.x = undefined;
                 mouse.y = undefined;
             });
@@ -657,8 +656,8 @@
                 let numberOfParticles = (particleCanvas.height * particleCanvas.width) / 9000;
                 for (let i = 0; i < numberOfParticles; i++) {
                     let size = (Math.random() * 2) + 1;
-                    let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
-                    let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
+                    let x = (Math.random() * ((particleCanvas.width - size * 2) - (size * 2)) + size * 2);
+                    let y = (Math.random() * ((particleCanvas.height - size * 2) - (size * 2)) + size * 2);
                     let directionX = (Math.random() * 0.4) - 0.2;
                     let directionY = (Math.random() * 0.4) - 0.2;
                     let color = 'white';
@@ -687,7 +686,7 @@
 
             function animateParticles() {
                 requestAnimationFrame(animateParticles);
-                ctx.clearRect(0, 0, innerWidth, innerHeight);
+                ctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
                 for (let i = 0; i < particlesArray.length; i++) {
                     particlesArray[i].update();
                 }
@@ -772,6 +771,15 @@
     </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
 
 
 
