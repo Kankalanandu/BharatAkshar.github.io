@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BharatAkshar - Sign Transliterate</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600&family=Noto+Sans+Devanagari&family=Noto+Sans+Tamil&family=Noto+Sans+Telugu&family=Noto+Sans+Bengali&family=Noto+Sans+Gujarati&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            touch-action: manipulation;
+        }
+        /* Fonts for each script */
+        .lang-hi-IN { font-family: 'Noto Sans Devanagari', sans-serif; }
+        .lang-ta-IN { font-family: 'Noto Sans Tamil', sans-serif; }
+        .lang-te-IN { font-family: 'Noto Sans Telugu', sans-serif; }
+        .lang-bn-IN { font-family: 'Noto Sans Bengali', sans-serif; }
+        .lang-gu-IN { font-family: 'Noto Sans Gujarati', sans-serif; }
+
+        /* India Flag Dark Theme Palette */
+        :root {
+            --bg-dark: #0d1117;
+            --bg-light: #161b22;
+            --border-color: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #7d8590;
+            --saffron: #FF9933;
+            --green: #138808;
+        }
+
+        /* High Contrast Mode */
+        .high-contrast {
+            --bg-dark: #000000;
+            --bg-light: #111111;
+            --border-color: #666666;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+        }
+
+        /* Large Text Mode */
+        .large-text {
+            font-size: 1.1rem;
+        }
+        .large-text .text-2xl { font-size: 1.8rem; }
+        .large-text .text-lg { font-size: 1.25rem; }
+
+        #app {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #particle-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        #app.high-contrast #particle-canvas {
+            display: none;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-height: -webkit-fill-available;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .loader {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid var(--saffron);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #camera-feed { width: 100%; height: 100%; object-fit: cover; }
+        
+        .glass-panel {
+            background-color: rgba(13, 17, 23, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(48, 54, 61, 0.8);
+        }
+
+        .high-contrast .glass-panel {
+            background-color: var(--bg-light);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        /* Custom select arrow */
+        select {
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23a0aec0' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708 .708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.7rem center;
+            background-size: 1em;
+        }
+
+        /* Settings Panel Toggle Switch */
+        .toggle-checkbox:checked { background-color: var(--green); }
+        .toggle-checkbox:checked + .toggle-label .toggle-ball { transform: translateX(100%); }
+    </style>
+</head>
+<body class="bg-black antialiased">
+
+    <div id="app" class="max-w-md mx-auto shadow-xl">
+        <canvas id="particle-canvas"></canvas>
+        <div class="app-container">
+            <!-- Header -->
+            <header class="flex items-center justify-between p-4 glass-panel">
+                <h1 class="text-xl font-semibold">BharatAkshar</h1>
+                <button id="settings-btn" class="p-2 rounded-full hover:bg-white/10 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </button>
+            </header>
+
+            <!-- Main Content -->
+            <main class="flex-grow overflow-y-auto p-4 space-y-4">
+                <!-- Camera / Upload View -->
+                <div class="p-4 rounded-lg space-y-4 glass-panel">
+                    <div class="relative w-full aspect-video bg-black/50 rounded-md overflow-hidden flex items-center justify-center text-gray-400">
+                        <div id="camera-view" class="w-full h-full">
+                            <video id="camera-feed" playsinline autoplay muted class="transform -scale-x-100"></video>
+                            <canvas id="photo-canvas" class="hidden"></canvas>
+                        </div>
+                        <div id="photo-display-view" class="hidden w-full h-full">
+                            <img id="captured-photo" class="w-full h-full object-contain" alt="Captured sign">
+                        </div>
+                        <div id="placeholder-view" class="text-center">
+                            <svg class="w-12 h-12 mx-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <p class="mt-2 text-sm">Camera Viewfinder</p>
+                        </div>
+                        <div id="permissions-message" class="hidden absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-center p-4">
+                            <p class="mb-4">Please grant camera access.</p>
+                            <button id="retry-camera" class="px-4 py-2 rounded-md font-semibold text-white" style="background-color: var(--green);">Retry</button>
+                        </div>
+                         <div id="processing-overlay" class="hidden absolute inset-0 bg-black/80 flex flex-col items-center justify-center space-y-3">
+                            <div class="loader"></div>
+                            <p>Processing...</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button id="capture-btn" class="w-full py-3 font-semibold rounded-md text-white transition-all hover:brightness-110" style="background-color: var(--saffron);">Capture Sign</button>
+                        <button id="upload-btn" class="w-full py-3 font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-white/10" style="background-color: var(--bg-dark); border: 1px solid var(--border-color);">Upload</button>
+                        <input type="file" id="image-upload-input" class="hidden" accept="image/*">
+                    </div>
+                </div>
+
+                <!-- Language Selectors -->
+                <div class="p-4 rounded-lg space-y-4 glass-panel">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="source-lang" class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Source Script</label>
+                            <select id="source-lang" class="w-full p-2 rounded-md border-0" style="background-color: var(--bg-dark); color: var(--text-primary);"></select>
+                        </div>
+                        <div>
+                            <label for="target-lang" class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Target Script</label>
+                            <select id="target-lang" class="w-full p-2 rounded-md border-0" style="background-color: var(--bg-dark); color: var(--text-primary);"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample Transliteration -->
+                <div class="p-4 rounded-lg space-y-4 glass-panel">
+                    <h2 class="text-lg font-semibold">Test a Sample Sign</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="sample-sign-select" class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">Choose Sign</label>
+                            <select id="sample-sign-select" class="w-full p-2 rounded-md border-0" style="background-color: var(--bg-dark); color: var(--text-primary);"></select>
+                        </div>
+                        <div>
+                            <label for="sample-target-script-select" class="block text-sm font-medium mb-1" style="color: var(--text-secondary);">To Script</label>
+                            <select id="sample-target-script-select" class="w-full p-2 rounded-md border-0" style="background-color: var(--bg-dark); color: var(--text-primary);"></select>
+                        </div>
+                    </div>
+                    <button id="sample-transliterate-btn" class="w-full py-3 font-semibold rounded-md text-white transition-all hover:brightness-110" style="background-color: var(--green);">Transliterate Sample</button>
+                </div>
+
+
+                <!-- Results Section -->
+                <div id="results-section" class="hidden p-4 rounded-lg glass-panel">
+                    <!-- content dynamically inserted here -->
+                </div>
+
+                <!-- History Section -->
+                <div class="p-4 rounded-lg glass-panel">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">History</h2>
+                        <button id="clear-history-btn" class="text-sm" style="color: var(--saffron);">Clear</button>
+                    </div>
+                    <div id="history-list" class="space-y-3">
+                        <p id="no-history-msg" style="color: var(--text-secondary);">No history yet.</p>
+                    </div>
+                </div>
+                
+                <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-md shadow-lg opacity-0 transition-opacity duration-300">Text copied!</div>
+            </main>
+            
+            <!-- Settings Panel (Modal) -->
+            <div id="settings-panel" class="hidden fixed inset-0 bg-black/60 z-50">
+                <div class="absolute top-0 right-0 h-full w-full max-w-sm p-6 space-y-6 glass-panel" style="background-color: #121212;">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">Settings</h2>
+                        <button id="close-settings-btn" class="p-2 rounded-full hover:bg-gray-700">&times;</button>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <label for="offline-mode">Offline Mode</label>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" id="offline-mode" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                <label for="offline-mode" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"><span class="toggle-ball"></span></label>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <label for="high-contrast-mode">High Contrast</label>
+                             <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" id="high-contrast-mode" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                <label for="high-contrast-mode" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"><span class="toggle-ball"></span></label>
+                            </div>
+                        </div>
+                         <div class="flex items-center justify-between">
+                            <label for="large-text-mode">Large Text</label>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" id="large-text-mode" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                <label for="large-text-mode" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"><span class="toggle-ball"></span></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DOM Elements ---
+        const app = document.getElementById('app');
+        const video = document.getElementById('camera-feed');
+        const canvas = document.getElementById('photo-canvas');
+        const captureBtn = document.getElementById('capture-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const imageUploadInput = document.getElementById('image-upload-input');
+        const cameraView = document.getElementById('camera-view');
+        const photoDisplayView = document.getElementById('photo-display-view');
+        const capturedPhoto = document.getElementById('captured-photo');
+        const placeholderView = document.getElementById('placeholder-view');
+        const permissionsMessage = document.getElementById('permissions-message');
+        const retryCameraBtn = document.getElementById('retry-camera');
+        const processingOverlay = document.getElementById('processing-overlay');
+        const sourceLangSelect = document.getElementById('source-lang');
+        const targetLangSelect = document.getElementById('target-lang');
+        const resultsSection = document.getElementById('results-section');
+        const historyList = document.getElementById('history-list');
+        const noHistoryMsg = document.getElementById('no-history-msg');
+        const clearHistoryBtn = document.getElementById('clear-history-btn');
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsPanel = document.getElementById('settings-panel');
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+        const offlineModeToggle = document.getElementById('offline-mode');
+        const highContrastToggle = document.getElementById('high-contrast-mode');
+        const largeTextToggle = document.getElementById('large-text-mode');
+        const toast = document.getElementById('toast');
+        const sampleSignSelect = document.getElementById('sample-sign-select');
+        const sampleTargetScriptSelect = document.getElementById('sample-target-script-select');
+        const sampleTransliterateBtn = document.getElementById('sample-transliterate-btn');
+        const particleCanvas = document.getElementById('particle-canvas');
+
+        // --- State ---
+        let currentStream;
+        let currentFacingMode = 'environment';
+        let history = [];
+        let currentAudio = null;
+        let currentPlayButton = null;
+
+        // --- Data ---
+        const signsData = [
+            { id: 'airport', scripts: { 'en-US': 'Airport', 'hi-IN': 'एयरपोर्ट', 'ta-IN': 'ஏர்போர்ட்', 'te-IN': 'ఎయిర్ పోర్ట్', 'bn-IN': 'এয়ারপোর্ট', 'gu-IN': 'એરપોર્ટ' }},
+            { id: 'hospital', scripts: { 'en-US': 'Hospital', 'hi-IN': 'हॉस्पिटल', 'ta-IN': 'ஹாஸ்பிடல்', 'te-IN': 'హాస్పిటల్', 'bn-IN': 'হাসপাতাল', 'gu-IN': 'હોસ્પિટલ' }},
+            { id: 'bus_stop', scripts: { 'en-US': 'Bus Stop', 'hi-IN': 'बस स्टॉप', 'ta-IN': 'பஸ் ஸ்டாப்', 'te-IN': 'బస్ స్టాప్', 'bn-IN': 'বাস স্টপ', 'gu-IN': 'બસ સ્ટોપ' }},
+            { id: 'railway_station', scripts: { 'en-US': 'Railway Station', 'hi-IN': 'रेलवे स्टेशन', 'ta-IN': 'ரயில்வே ஸ்டேஷன்', 'te-IN': 'రైల్వే స్టేషన్', 'bn-IN': 'রেলওয়ে স্টেশন', 'gu-IN': 'રેલવે સ્ટેશન' }},
+            { id: 'market', scripts: { 'en-US': 'Market', 'hi-IN': 'मार्केट', 'ta-IN': 'மார்க்கெட்', 'te-IN': 'మార్కెట్', 'bn-IN': 'মার্কেট', 'gu-IN': 'માર્કેટ' }},
+            { id: 'school', scripts: { 'en-US': 'School', 'hi-IN': 'स्कूल', 'ta-IN': 'ஸ்கூல்', 'te-IN': 'స్కూల్', 'bn-IN': 'স্কুল', 'gu-IN': 'સ્કૂલ' }},
+            { id: 'police_station', scripts: { 'en-US': 'Police Station', 'hi-IN': 'पुलिस स्टेशन', 'ta-IN': 'போலீஸ் ஸ்டேஷன்', 'te-IN': 'పోలీస్ స్టేషన్', 'bn-IN': 'পুলিশ স্টেশন', 'gu-IN': 'પોલીસ સ્ટેશન' }},
+            { id: 'pharmacy', scripts: { 'en-US': 'Pharmacy', 'hi-IN': 'फार्मेसी', 'ta-IN': 'பார்மஸி', 'te-IN': 'ఫార్మసీ', 'bn-IN': 'ফার্মেসি', 'gu-IN': 'ફાર્મસી' }},
+            { id: 'restaurant', scripts: { 'en-US': 'Restaurant', 'hi-IN': 'रेस्टोरेंट', 'ta-IN': 'ரெஸ்டாரன்ட்', 'te-IN': 'రెస్టారెంట్', 'bn-IN': 'রেস্তোরাঁ', 'gu-IN': 'રેસ્ટોરન્ટ' }},
+            { id: 'toilet', scripts: { 'en-US': 'Toilet', 'hi-IN': 'टॉयलेट', 'ta-IN': 'டாய்லெட்', 'te-IN': 'టాయిలెట్', 'bn-IN': 'टॉयलेट', 'gu-IN': 'ટોયલેટ' }}
+        ];
+        const langMeta = {
+            'auto': 'Auto Detect', 'en-US': 'English', 'hi-IN': 'हिन्दी', 'ta-IN': 'தமிழ்',
+            'te-IN': 'తెలుగు', 'bn-IN': 'বাংলা', 'gu-IN': 'ગુજરાતી'
+        };
+
+        // --- Functions ---
+        
+        const populateSelects = () => {
+            // Main selectors
+            Object.keys(langMeta).forEach(key => {
+                const sourceOpt = document.createElement('option');
+                sourceOpt.value = key;
+                sourceOpt.textContent = langMeta[key];
+                sourceLangSelect.appendChild(sourceOpt);
+                
+                if(key !== 'auto') {
+                    const targetOpt = document.createElement('option');
+                    targetOpt.value = key;
+                    targetOpt.textContent = langMeta[key];
+                    targetLangSelect.appendChild(targetOpt);
+                }
+            });
+            targetLangSelect.value = 'en-US';
+
+            // Sample selectors
+            signsData.forEach(sign => {
+                Object.entries(sign.scripts).forEach(([langCode, langText]) => {
+                    const signOpt = document.createElement('option');
+                    signOpt.value = `${sign.id}|${langCode}`; 
+                    signOpt.textContent = langText;
+                    signOpt.classList.add(`lang-${langCode}`);
+                    sampleSignSelect.appendChild(signOpt);
+                });
+            });
+
+            Object.keys(langMeta).forEach(key => {
+                 if(key !== 'auto') {
+                    const scriptOpt = document.createElement('option');
+                    scriptOpt.value = key;
+                    scriptOpt.textContent = langMeta[key];
+                    sampleTargetScriptSelect.appendChild(scriptOpt);
+                 }
+            });
+            sampleTargetScriptSelect.value = 'hi-IN';
+        };
+
+        const startCamera = async () => {
+            if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+            const constraints = { video: { facingMode: currentFacingMode, width: { ideal: 1920 }, height: { ideal: 1080 } } };
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = currentStream;
+                video.style.transform = currentFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+                permissionsMessage.classList.add('hidden');
+                placeholderView.classList.add('hidden');
+                cameraView.classList.remove('hidden');
+            } catch (err) {
+                console.error("Camera access error:", err);
+                permissionsMessage.classList.remove('hidden');
+                placeholderView.classList.remove('hidden');
+                cameraView.classList.add('hidden');
+            }
+        };
+        
+        const stopCamera = () => {
+             if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+                cameraView.classList.add('hidden');
+                placeholderView.classList.remove('hidden');
+            }
+        }
+
+        const processImage = (imageSrc) => {
+            processingOverlay.classList.remove('hidden');
+            resultsSection.classList.add('hidden');
+            
+            setTimeout(() => {
+                const sign = signsData[Math.floor(Math.random() * signsData.length)];
+                let detectedLang = sourceLangSelect.value;
+                if (detectedLang === 'auto') {
+                    const availableScripts = Object.keys(sign.scripts);
+                    detectedLang = availableScripts[Math.floor(Math.random() * availableScripts.length)];
+                }
+                
+                capturedPhoto.src = imageSrc;
+                const targetLang = targetLangSelect.value;
+                displayResults(sign.id, detectedLang, targetLang);
+                
+                processingOverlay.classList.add('hidden');
+            }, 1500);
+        };
+
+        const captureAndProcess = () => {
+            if (!currentStream) {
+                showToast("Camera not active.");
+                return;
+            }
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            if (currentFacingMode === 'user') {
+                 context.translate(canvas.width, 0);
+                 context.scale(-1, 1);
+            }
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            photoDisplayView.classList.remove('hidden');
+            cameraView.classList.add('hidden');
+            
+            processImage(canvas.toDataURL('image/jpeg'));
+        };
+
+        const stopCurrentAudio = () => {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.src = '';
+                if (currentPlayButton) {
+                    updatePlayButtonUI(currentPlayButton, 'stopped');
+                }
+                currentAudio = null;
+                currentPlayButton = null;
+            }
+        };
+
+        const displayResults = (signId, detectedLang, targetLang) => {
+            stopCurrentAudio();
+            const sign = signsData.find(s => s.id === signId);
+            if (!sign) {
+                console.error("Sign not found for ID:", signId);
+                return;
+            }
+            
+            const originalText = sign.scripts[detectedLang];
+            const transliteratedText = sign.scripts[targetLang];
+            
+            resultsSection.innerHTML = `
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="font-semibold text-sm" style="color: var(--text-secondary);">Detected Text (${langMeta[detectedLang]})</h3>
+                        <p class="text-lg lang-${detectedLang}">${originalText}</p>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-semibold text-sm" style="color: var(--text-secondary);">Transliteration (${langMeta[targetLang]})</h3>
+                            <button class="copy-btn text-sm font-medium" style="color: var(--saffron);">Copy</button>
+                        </div>
+                        <p class="transliterated-text text-2xl font-bold lang-${targetLang}">${transliteratedText}</p>
+                    </div>
+                </div>
+                <div class="border-t pt-4 mt-4" style="border-color: var(--border-color);">
+                     <div class="flex items-center justify-between">
+                        <button class="play-pause-btn w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-transform active:scale-90" style="background-color: var(--green);">
+                            <svg class="play-icon w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                            <svg class="stop-icon hidden w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M5 5h10v10H5V5z" /></svg>
+                        </button>
+                        <p class="voice-status text-sm" style="color: var(--text-secondary);">Play audio</p>
+                    </div>
+                </div>
+            `;
+            resultsSection.classList.remove('hidden');
+            
+            captureBtn.textContent = 'Scan New Sign';
+            uploadBtn.disabled = true;
+
+            resultsSection.querySelector('.copy-btn').addEventListener('click', (e) => {
+                const text = resultsSection.querySelector('.transliterated-text').textContent;
+                navigator.clipboard.writeText(text).then(() => showToast('Copied!'));
+            });
+
+            resultsSection.querySelector('.play-pause-btn').addEventListener('click', (e) => {
+                 const text = resultsSection.querySelector('.transliterated-text').textContent;
+                 handlePlayPause(text, targetLang, e.currentTarget);
+            });
+
+            saveToHistory({ original: originalText, transliterated: transliteratedText, from: langMeta[detectedLang], to: langMeta[targetLang] });
+        };
+        
+        const updatePlayButtonUI = (button, state) => {
+            if (!button) return;
+            const playIcon = button.querySelector('.play-icon');
+            const stopIcon = button.querySelector('.stop-icon');
+
+            playIcon.classList.add('hidden');
+            stopIcon.classList.add('hidden');
+
+            if (state === 'playing') stopIcon.classList.remove('hidden');
+            else playIcon.classList.remove('hidden'); // 'stopped'
+        };
+        
+       const handlePlayPause = (text, lang, btn) => {
+             // If the user clicks the button for the audio that's already playing, stop it.
+            if (currentAudio && currentPlayButton === btn) {
+                stopCurrentAudio();
+                return;
+            }
+            
+            // If any other audio is playing, stop it before starting the new one.
+            stopCurrentAudio();
+
+            if (!text) return;
+            
+            // NOTE: This cloud-based TTS URL will show an error on local servers due to CORS.
+            // It is designed to work correctly when deployed to a live web host.
+            const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=tw-ob`;
+            currentAudio = new Audio(ttsUrl);
+            currentPlayButton = btn;
+
+            const cleanup = () => {
+                if (currentPlayButton === btn) {
+                    updatePlayButtonUI(btn, 'stopped');
+                    currentPlayButton = null;
+                    currentAudio = null;
+                }
+            };
+            
+            currentAudio.addEventListener('playing', () => updatePlayButtonUI(btn, 'playing'));
+            currentAudio.addEventListener('ended', cleanup);
+            currentAudio.addEventListener('pause', cleanup);
+            currentAudio.addEventListener('error', () => {
+                console.error("Cloud TTS Error: This is expected on local servers (CORS). It will work when deployed online.");
+                showToast('Audio will work when deployed.');
+                cleanup();
+            });
+
+            currentAudio.play().catch(error => {
+                if (error.name !== 'AbortError') { 
+                    console.error("Playback error:", error);
+                    cleanup();
+                }
+            });
+        };
+        
+        const saveToHistory = (item) => {
+            history.unshift(item);
+            if (history.length > 10) history.pop();
+            localStorage.setItem('transliterationHistory', JSON.stringify(history));
+            renderHistory();
+        };
+
+        const loadHistory = () => {
+            const savedHistory = localStorage.getItem('transliterationHistory');
+            history = savedHistory ? JSON.parse(savedHistory) : [];
+            renderHistory();
+        };
+        
+        const renderHistory = () => {
+            if (history.length === 0) {
+                noHistoryMsg.classList.remove('hidden');
+                historyList.innerHTML = '';
+                historyList.appendChild(noHistoryMsg);
+            } else {
+                noHistoryMsg.classList.add('hidden');
+                historyList.innerHTML = history.map(item => `
+                    <div class="p-3 rounded-md" style="background-color: var(--bg-dark);">
+                        <p class="text-sm" style="color: var(--text-secondary);">${item.from} &rarr; ${item.to}</p>
+                        <p class="font-semibold">${item.transliterated}</p>
+                    </div>
+                `).join('');
+            }
+        };
+        
+        const clearHistory = () => {
+            history = [];
+            localStorage.removeItem('transliterationHistory');
+            renderHistory();
+        };
+        
+        const applySettings = () => {
+            const settings = JSON.parse(localStorage.getItem('appSettings')) || {};
+            highContrastToggle.checked = settings.highContrast || false;
+            app.classList.toggle('high-contrast', highContrastToggle.checked);
+            largeTextToggle.checked = settings.largeText || false;
+            app.classList.toggle('large-text', largeTextToggle.checked);
+            offlineModeToggle.checked = settings.offlineMode || false;
+        };
+
+        const saveSettings = () => {
+             const settings = {
+                highContrast: highContrastToggle.checked,
+                largeText: largeTextToggle.checked,
+                offlineMode: offlineModeToggle.checked
+            };
+            localStorage.setItem('appSettings', JSON.stringify(settings));
+        };
+
+        const showToast = (message) => {
+            toast.textContent = message;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 2000);
+        };
+
+        const handleSampleTransliteration = () => {
+            const [signId, sourceScript] = sampleSignSelect.value.split('|');
+            const targetScript = sampleTargetScriptSelect.value;
+
+            if(sourceScript === targetScript) {
+                showToast("Source and target scripts are the same.");
+                return;
+            }
+
+            displayResults(signId, sourceScript, targetScript);
+        };
+
+        // --- Particle Animation ---
+        const setupParticleAnimation = () => {
+            const ctx = particleCanvas.getContext('2d');
+            let particlesArray;
+
+            const resizeCanvas = () => {
+                particleCanvas.width = particleCanvas.clientWidth;
+                particleCanvas.height = particleCanvas.clientHeight;
+            };
+            
+            const mouse = { x: undefined, y: undefined };
+            window.addEventListener('mousemove', (event) => {
+                mouse.x = event.x;
+                mouse.y = event.y;
+            });
+             window.addEventListener('mouseout', () => {
+                mouse.x = undefined;
+                mouse.y = undefined;
+            });
+
+
+            class Particle {
+                constructor(x, y, directionX, directionY, size, color) {
+                    this.x = x;
+                    this.y = y;
+                    this.directionX = directionX;
+                    this.directionY = directionY;
+                    this.size = size;
+                    this.color = color;
+                }
+                draw() {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                    ctx.fill();
+                }
+                update() {
+                    if (this.x > particleCanvas.width || this.x < 0) {
+                        this.directionX = -this.directionX;
+                    }
+                    if (this.y > particleCanvas.height || this.y < 0) {
+                        this.directionY = -this.directionY;
+                    }
+                    this.x += this.directionX;
+                    this.y += this.directionY;
+                    this.draw();
+                }
+            }
+
+            function initParticles() {
+                particlesArray = [];
+                let numberOfParticles = (particleCanvas.height * particleCanvas.width) / 9000;
+                for (let i = 0; i < numberOfParticles; i++) {
+                    let size = (Math.random() * 2) + 1;
+                    let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
+                    let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
+                    let directionX = (Math.random() * 0.4) - 0.2;
+                    let directionY = (Math.random() * 0.4) - 0.2;
+                    let color = 'white';
+                    particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
+                }
+            }
+
+            function connectParticles() {
+                let opacityValue = 1;
+                for (let a = 0; a < particlesArray.length; a++) {
+                    for (let b = a; b < particlesArray.length; b++) {
+                        let distance = ((particlesArray[a].x - particlesArray[b].x) * (particlesArray[a].x - particlesArray[b].x)) +
+                                     ((particlesArray[a].y - particlesArray[b].y) * (particlesArray[a].y - particlesArray[b].y));
+                        if (distance < (particleCanvas.width/7) * (particleCanvas.height/7)) {
+                            opacityValue = 1 - (distance/20000);
+                            ctx.strokeStyle = `rgba(255, 255, 255, ${opacityValue})`;
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                            ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            function animateParticles() {
+                requestAnimationFrame(animateParticles);
+                ctx.clearRect(0, 0, innerWidth, innerHeight);
+                for (let i = 0; i < particlesArray.length; i++) {
+                    particlesArray[i].update();
+                }
+                connectParticles();
+            }
+
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                initParticles();
+            });
+            
+            resizeCanvas();
+            initParticles();
+            animateParticles();
+        };
+
+
+        // --- Event Listeners ---
+        captureBtn.addEventListener('click', () => {
+            if (captureBtn.textContent === 'Scan New Sign') {
+                resultsSection.classList.add('hidden');
+                photoDisplayView.classList.add('hidden');
+                cameraView.classList.remove('hidden');
+                if (placeholderView) {
+                    placeholderView.classList.add('hidden');
+                }
+                captureBtn.textContent = 'Capture Sign';
+                uploadBtn.disabled = false;
+                stopCurrentAudio();
+                startCamera();
+            } else {
+                captureAndProcess();
+            }
+        });
+        uploadBtn.addEventListener('click', () => imageUploadInput.click());
+        imageUploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    stopCamera();
+                    photoDisplayView.classList.remove('hidden');
+                    cameraView.classList.add('hidden');
+                    placeholderView.classList.add('hidden');
+                    processImage(event.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        retryCameraBtn.addEventListener('click', startCamera);
+        clearHistoryBtn.addEventListener('click', clearHistory);
+        settingsBtn.addEventListener('click', () => settingsPanel.classList.remove('hidden'));
+        closeSettingsBtn.addEventListener('click', () => settingsPanel.classList.add('hidden'));
+        sampleTransliterateBtn.addEventListener('click', handleSampleTransliteration);
+
+        settingsPanel.addEventListener('click', (e) => {
+            if(e.target === settingsPanel) settingsPanel.classList.add('hidden');
+        });
+
+        // Settings Toggles
+        highContrastToggle.addEventListener('change', () => {
+            app.classList.toggle('high-contrast', highContrastToggle.checked);
+            saveSettings();
+        });
+        largeTextToggle.addEventListener('change', () => {
+            app.classList.toggle('large-text', largeTextToggle.checked);
+            saveSettings();
+        });
+        offlineModeToggle.addEventListener('change', saveSettings);
+        
+        // --- Init ---
+        const init = () => {
+            populateSelects();
+            startCamera();
+            loadHistory();
+            applySettings();
+            setupParticleAnimation();
+        };
+
+        init();
+    });
+    </script>
+</body>
+</html>
+
+
+
+
+
