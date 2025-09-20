@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BharatAkshar - Sign Transliterate</title>
+    <title>BharatPath - Sign Transliterate</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -122,7 +123,7 @@
         <div class="app-container">
             <!-- Header -->
             <header class="flex items-center justify-between p-4 glass-panel">
-                <h1 class="text-xl font-semibold">BharatAkshar</h1>
+                <h1 class="text-xl font-semibold">Street Sign Transliterate</h1>
                 <button id="settings-btn" class="p-2 rounded-full hover:bg-white/10 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 </button>
@@ -283,7 +284,7 @@
         let currentStream;
         let currentFacingMode = 'environment';
         let history = [];
-        let currentAudio = null;
+        let voices = [];
         let currentPlayButton = null;
 
         // --- Data ---
@@ -412,20 +413,14 @@
             processImage(canvas.toDataURL('image/jpeg'));
         };
 
-        const stopCurrentAudio = () => {
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio.src = '';
-                if (currentPlayButton) {
-                    updatePlayButtonUI(currentPlayButton, 'stopped');
-                }
-                currentAudio = null;
-                currentPlayButton = null;
+        const stopCurrentSpeech = () => {
+            if (speechSynthesis.speaking || speechSynthesis.pending) {
+                speechSynthesis.cancel();
             }
         };
 
         const displayResults = (signId, detectedLang, targetLang) => {
-            stopCurrentAudio();
+            stopCurrentSpeech();
             const sign = signsData.find(s => s.id === signId);
             if (!sign) {
                 console.error("Sign not found for ID:", signId);
@@ -477,57 +472,85 @@
             saveToHistory({ original: originalText, transliterated: transliteratedText, from: langMeta[detectedLang], to: langMeta[targetLang] });
         };
         
-        const updatePlayButtonUI = (button, state) => {
-            if (!button) return;
-            const playIcon = button.querySelector('.play-icon');
-            const stopIcon = button.querySelector('.stop-icon');
-
-            playIcon.classList.add('hidden');
-            stopIcon.classList.add('hidden');
-
-            if (state === 'playing') stopIcon.classList.remove('hidden');
-            else playIcon.classList.remove('hidden'); // 'stopped'
-        };
-        
-       const handlePlayPause = (text, lang, btn) => {
-             // If the user clicks the button for the audio that's already playing, stop it.
-            if (currentAudio && currentPlayButton === btn) {
-                stopCurrentAudio();
-                return;
-            }
-            
-            // If any other audio is playing, stop it before starting the new one.
-            stopCurrentAudio();
-
-            if (!text) return;
-            
-            const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=tw-ob`;
-            currentAudio = new Audio(ttsUrl);
-            currentPlayButton = btn;
-
-            const cleanup = () => {
-                if (currentPlayButton === btn) {
-                    updatePlayButtonUI(btn, 'stopped');
-                    currentPlayButton = null;
-                    currentAudio = null;
+        const handlePlayPause = async (text, lang, btn) => {
+            const updateUI = (button, state) => {
+                if (!button) return;
+                const playIcon = button.querySelector('.play-icon');
+                const stopIcon = button.querySelector('.stop-icon');
+                if (state === 'playing') {
+                    playIcon.classList.add('hidden');
+                    stopIcon.classList.remove('hidden');
+                } else { // 'stopped'
+                    playIcon.classList.remove('hidden');
+                    stopIcon.classList.add('hidden');
                 }
             };
-            
-            currentAudio.addEventListener('playing', () => updatePlayButtonUI(btn, 'playing'));
-            currentAudio.addEventListener('ended', cleanup);
-            currentAudio.addEventListener('pause', cleanup);
-            currentAudio.addEventListener('error', () => {
-                console.error("Cloud TTS Error: This is expected on local servers (CORS). It will work when deployed online.");
-                showToast('Audio will work when deployed.');
-                cleanup();
-            });
 
-            currentAudio.play().catch(error => {
-                if (error.name !== 'AbortError') { 
-                    console.error("Playback error:", error);
-                    cleanup();
+            const wasSpeakingAndThisButton = speechSynthesis.speaking && currentPlayButton === btn;
+            
+            stopCurrentSpeech();
+
+            if (wasSpeakingAndThisButton) {
+                return; 
+            }
+
+            if (!text) return;
+
+            if (voices.length === 0) {
+                await new Promise(resolve => {
+                    const checkVoices = () => {
+                        let availableVoices = speechSynthesis.getVoices();
+                        if (availableVoices.length > 0) {
+                            voices = availableVoices;
+                            resolve();
+                        } else {
+                            setTimeout(checkVoices, 100);
+                        }
+                    };
+                    checkVoices();
+                });
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            let selectedVoice = voices.find(voice => voice.lang === lang);
+            if (!selectedVoice) {
+                selectedVoice = voices.find(voice => voice.lang.startsWith(lang.split('-')[0]));
+            }
+            
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+            } else {
+                utterance.lang = lang; 
+                console.warn(`No specific voice found for lang: ${lang}. Using browser default. Check system language packs.`);
+                showToast(`Voice for this language not on device.`);
+            }
+            
+            utterance.onstart = () => {
+                if (currentPlayButton && currentPlayButton !== btn) {
+                    updateUI(currentPlayButton, 'stopped');
                 }
-            });
+                currentPlayButton = btn;
+                updateUI(currentPlayButton, 'playing');
+            };
+
+            utterance.onend = () => {
+                if(currentPlayButton) {
+                    updateUI(currentPlayButton, 'stopped');
+                }
+                currentPlayButton = null;
+            };
+
+            utterance.onerror = (e) => {
+                console.error("Speech Synthesis Error:", e);
+                showToast('Voice playback error.');
+                if(currentPlayButton) {
+                   updateUI(currentPlayButton, 'stopped');
+                }
+                currentPlayButton = null;
+            };
+            
+            speechSynthesis.speak(utterance);
         };
         
         const saveToHistory = (item) => {
@@ -715,7 +738,7 @@
                 }
                 captureBtn.textContent = 'Capture Sign';
                 uploadBtn.disabled = false;
-                stopCurrentAudio();
+                stopCurrentSpeech();
                 startCamera();
             } else {
                 captureAndProcess();
@@ -764,6 +787,16 @@
             loadHistory();
             applySettings();
             setupParticleAnimation();
+            
+            // This robustly loads voices for SpeechSynthesis.
+            const loadVoices = () => {
+                voices = speechSynthesis.getVoices();
+            }
+            if ('onvoiceschanged' in speechSynthesis) {
+                speechSynthesis.onvoiceschanged = loadVoices;
+            }
+            loadVoices(); 
+            setTimeout(loadVoices, 250); 
         };
 
         init();
@@ -771,6 +804,8 @@
     </script>
 </body>
 </html>
+
+
 
 
 
